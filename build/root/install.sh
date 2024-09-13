@@ -58,17 +58,17 @@ fi
 max_limit='5000'
 default_limit='100'
 
-cd '/tmp'
+install_path="/tmp/bitmagnet"
 
-# clone bitmagnet
-git clone https://github.com/bitmagnet-io/bitmagnet
+# download bitmagnet from releases
+github.sh --install-path "${install_path}" --github-owner 'bitmagnet-io' --github-repo 'bitmagnet' --query-type 'release' --download-branch 'main'
 
 # update result limit for bitmagnet
-sed -i -e "s~maxLimit:[[:space:]]*[[:digit:]]*.*~maxLimit:     ${max_limit},~g" '/tmp/bitmagnet/internal/torznab/adapter/adapter.go'
-sed -i -e "s~defaultLimit:[[:space:]]*[[:digit:]]*.*~defaultLimit: ${default_limit},~g" '/tmp/bitmagnet/internal/torznab/adapter/adapter.go'
+sed -i -e "s~maxLimit:[[:space:]]*[[:digit:]]*.*~maxLimit:     ${max_limit},~g" "${install_path}/internal/torznab/adapter/adapter.go"
+sed -i -e "s~defaultLimit:[[:space:]]*[[:digit:]]*.*~defaultLimit: ${default_limit},~g" "${install_path}/internal/torznab/adapter/adapter.go"
 
 # set location to install bitmagnet via GOBIN and then go install
-cd /tmp/bitmagnet && GOBIN=/usr/local/bin/ go install
+cd "${install_path}" && GOBIN=/usr/local/bin/ go install
 
 # create path to store postgres lock file
 mkdir -p /run/postgresql
