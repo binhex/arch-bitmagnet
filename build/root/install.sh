@@ -137,8 +137,5 @@ sed -i '/# PERMISSIONS_PLACEHOLDER/{
 }' /usr/local/bin/init.sh
 rm /tmp/permissions_heredoc
 
-# prevent removal as orphan by marking as explicitly required
-pacman -D --asexplicit icu
-
 # cleanup
 cleanup.sh
