@@ -49,9 +49,14 @@ fi
 # custom
 ####
 
-# define new result limit for bitmagnet as it's currently hard set to 100,
-# which means we miss magnet links due to the sheer number of magnets added
-new_limit='1000'
+# define new result limit for bitmagnet as it's currently hard set to 100, which means we
+# miss magnet links due to the sheer number of magnets added in a short time period.
+#
+# note pagination via 'offset' does work but only for bitmagnet torznab api, it is not
+# working yet for jacket (see https://github.com/Jackett/Jackett/pull/13996) or prowlarr
+# (see https://github.com/Prowlarr/Prowlarr/issues/379#issuecomment-1509457805)
+max_limit='5000'
+default_limit='100'
 
 cd '/tmp'
 
@@ -59,8 +64,8 @@ cd '/tmp'
 git clone https://github.com/bitmagnet-io/bitmagnet
 
 # update result limit for bitmagnet
-sed -i -e "s~maxLimit:[[:space:]]*[[:digit:]]*.*~maxLimit:     ${new_limit},~g" '/tmp/bitmagnet/internal/torznab/adapter/adapter.go'
-sed -i -e "s~defaultLimit:[[:space:]]*[[:digit:]]*.*~defaultLimit: ${new_limit},~g" '/tmp/bitmagnet/internal/torznab/adapter/adapter.go'
+sed -i -e "s~maxLimit:[[:space:]]*[[:digit:]]*.*~maxLimit:     ${max_limit},~g" '/tmp/bitmagnet/internal/torznab/adapter/adapter.go'
+sed -i -e "s~defaultLimit:[[:space:]]*[[:digit:]]*.*~defaultLimit: ${default_limit},~g" '/tmp/bitmagnet/internal/torznab/adapter/adapter.go'
 
 # set location to install bitmagnet via GOBIN and then go install
 cd /tmp/bitmagnet && GOBIN=/usr/local/bin/ go install
