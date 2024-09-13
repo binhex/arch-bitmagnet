@@ -6,6 +6,9 @@ postgres_password=postgres
 postgres_database=bitmagnet
 postgres_data=/config/postgres/data
 
+# source in script to wait for child processes to exit
+source /usr/local/bin/waitproc.sh
+
 function database_version_check() {
 	# Prints the warning message if the database version on disk
 	# does not match the PostgreSQL major version.
