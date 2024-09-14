@@ -39,7 +39,7 @@ mv /tmp/scripts-master/shell/arch/docker/*.sh /usr/local/bin/
 ####
 
 # define pacman packages
-pacman_packages="go git postgresql postgresql-libs"
+pacman_packages="go git postgresql postgresql-libs sqlite jq"
 
 # install compiled packages using pacman
 if [[ ! -z "${pacman_packages}" ]]; then
