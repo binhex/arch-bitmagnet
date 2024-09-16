@@ -55,20 +55,24 @@ fi
 # note pagination via 'offset' does work but only for bitmagnet torznab api, it is not
 # working yet for jacket (see https://github.com/Jackett/Jackett/pull/13996) or prowlarr
 # (see https://github.com/Prowlarr/Prowlarr/issues/379#issuecomment-1509457805)
+#
 max_limit='5000'
 default_limit='100'
 
-install_path="/tmp/bitmagnet"
+download_path="/tmp/bitmagnet"
+install_path="/opt/bitmagnet"
+
+mkdir -p "${install_path}"
 
 # download bitmagnet from releases
-github.sh --install-path "${install_path}" --github-owner 'bitmagnet-io' --github-repo 'bitmagnet' --query-type 'release' --download-branch 'main'
+github.sh --install-path "${download_path}" --github-owner 'bitmagnet-io' --github-repo 'bitmagnet' --query-type 'release' --download-branch 'main'
 
 # update result limit for bitmagnet
-sed -i -e "s~maxLimit:[[:space:]]*[[:digit:]]*.*~maxLimit:     ${max_limit},~g" "${install_path}/internal/torznab/adapter/adapter.go"
-sed -i -e "s~defaultLimit:[[:space:]]*[[:digit:]]*.*~defaultLimit: ${default_limit},~g" "${install_path}/internal/torznab/adapter/adapter.go"
+sed -i -e "s~maxLimit:[[:space:]]*[[:digit:]]*.*~maxLimit:     ${max_limit},~g" "${download_path}/internal/torznab/adapter/adapter.go"
+sed -i -e "s~defaultLimit:[[:space:]]*[[:digit:]]*.*~defaultLimit: ${default_limit},~g" "${download_path}/internal/torznab/adapter/adapter.go"
 
 # set location to install bitmagnet via GOBIN and then go install
-cd "${install_path}" && GOBIN=/usr/local/bin/ go install
+cd "${download_path}" && GOBIN="${install_path}" go install
 
 # create path to store postgres lock file
 mkdir -p /run/postgresql
@@ -86,7 +90,7 @@ source aur.sh
 ####
 
 # define comma separated list of paths
-install_paths="/run/postgresql,/var/lib/postgres,/home/nobody"
+install_paths="/opt/bitmagnet,/run/postgresql,/var/lib/postgres,/home/nobody"
 
 # split comma separated string into list for install paths
 IFS=',' read -ra install_paths_list <<< "${install_paths}"

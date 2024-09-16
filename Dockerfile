@@ -20,6 +20,9 @@ ADD build/root/*.sh /root/
 # add start bash script
 ADD run/nobody/*.sh /home/nobody/
 
+# add pre-configured config
+ADD config/nobody/* /home/nobody/
+
 # install app
 #############
 
