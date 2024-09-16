@@ -13,11 +13,11 @@ Latest GitHub release.
 **Usage**
 ```
 docker run -d \
+    --name=<container name> \
     -p <webui port>:3333 \
     -p <bittorrent port tcp>:3344 \
     -p <bittorrent port udp>:3344/udp \
     -p <postgres port>:5432 \
-    --name=<container name> \
     -v <path for config files>:/config \
     -v /etc/localtime:/etc/localtime:ro
     -e UMASK=<umask for created files> \
@@ -35,11 +35,11 @@ Please replace all user variables in the above command defined by <> with the co
 **Example**
 ```
 docker run -d \
+    --name=bitmagnet \
     -p 3333:3333 \
     -p 3344:3344 \
     -p 3344:3344/udp \
     -p 5432:5432 \
-    --name=bitmagnet \
     -v /apps/docker/bitmagnet:/config \
     -v /etc/localtime:/etc/localtime:ro \
     -e UMASK=000 \
