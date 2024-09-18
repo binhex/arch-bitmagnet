@@ -69,14 +69,32 @@ github.sh --install-path "${download_path}" --github-owner 'bitmagnet-io' --gith
 
 # update result limit for bitmagnet to ensure we don't miss any new magnets due
 # to the current max limit of 100, note we keep the default limit at 100, so
-# unless you specify 'limit=xxxx' in the query then you will only get 100 results
-# returned
+# unless you specify 'limit=xxxx' in the query then you will only get a maximum
+# of 100 results returned
 sed -i -e "s~maxLimit:[[:space:]]*[[:digit:]]*.*~maxLimit:     ${max_limit},~g" "${download_path}/internal/torznab/adapter/adapter.go"
 sed -i -e "s~defaultLimit:[[:space:]]*[[:digit:]]*.*~defaultLimit: ${default_limit},~g" "${download_path}/internal/torznab/adapter/adapter.go"
 
 # switch sort order to be 'published' date not 'relevance', as relevance does
 # not list latest added magnets first and thus you may end up missing new magnets
-sed -i -e 's~Column:  clause.Column{Name: QueryStringRankField},~Column:  clause.Column{Name: "published_at"},~g' "${download_path}/internal/database/query/options.go"
+#
+# create function to order by published_at in options.go
+cat <<EOF >> "${download_path}/internal/database/query/options.go"
+func OrderByPublishedAt() Option {
+	return func(ctx OptionBuilder) (OptionBuilder, error) {
+		return ctx.OrderBy(OrderByColumn{
+			OrderByColumn: clause.OrderByColumn{
+				Column:  clause.Column{Name: "published_at"},
+				Desc:    true,
+				Reorder: true,
+			},
+		}), nil
+	}
+}
+
+EOF
+
+# reference new function created in options.go to order by published_at
+sed -i -e 's~options = append(options, query.QueryString(r.Query), query.OrderByQueryStringRank())~options = append(options, query.QueryString(r.Query), query.OrderByPublishedAt())~g' "${download_path}/internal/torznab/adapter/search.go"
 
 # set location to install bitmagnet via GOBIN and then go install
 cd "${download_path}" && GOBIN="${install_path}" go install
