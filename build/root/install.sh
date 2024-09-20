@@ -102,6 +102,9 @@ cd "${download_path}" && GOBIN="${install_path}" go install
 # create path to store postgres lock file
 mkdir -p /run/postgresql
 
+# add bitmagnet to path to ease user interaction via console
+echo "export PATH=${install_path}:\${PATH}" >> '/home/nobody/.bashrc'
+
 # aur packages
 ####
 

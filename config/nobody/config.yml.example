@@ -34,6 +34,11 @@ classifier:
       - iso                       # matches extension "iso"
       - exe                       # matches extension "exe"
 
+  find_match:
+    if_else:                      # if torrent base name matches a banned keyword then delete
+      condition: "torrent.baseName.matches(keywords.banned)"
+      if_action: delete
+
   flags:
     local_search_enabled: true    # define whether to enable local search
     apis_enabled: true            # define whether to enable external API search
