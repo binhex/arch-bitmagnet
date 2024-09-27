@@ -1,4 +1,4 @@
-# Example configuration file for bitmagnet - see https://bitmagnet.io/guides/classifier.html
+# Example (simple) configuration file for bitmagnet - see https://bitmagnet.io/guides/classifier.html
 # for further details.
 #
 # Any configuration defined below will be merged with the existing core classifier

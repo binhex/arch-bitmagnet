@@ -8,6 +8,7 @@ postgres_data=/config/postgres/data
 bitmagnet_install_path="/opt/bitmagnet"
 bitmagnet_config_path="/config/bitmagnet"
 bitmagnet_config_filename="config.yml"
+bitmagnet_classifier_filename="classifier.yml"
 
 # source in script to wait for child processes to exit
 source /usr/local/bin/waitproc.sh
@@ -15,17 +16,26 @@ source /usr/local/bin/waitproc.sh
 function copy_example_bitmagnet_config() {
 	mkdir -p "${bitmagnet_config_path}"
 
-	if [[ ! -f "${bitmagnet_config_path}/${bitmagnet_config_filename}" && ! -f "${bitmagnet_config_path}/${bitmagnet_config_filename}.example" ]]; then
-		echo "[info] Copying example bitmgnet config file..."
-		cp "/home/nobody/${bitmagnet_config_filename}.example" "${bitmagnet_config_path}/${bitmagnet_config_filename}.example"
-	else
-		echo "[info] bitmagnet config file already exists, skipping copy..."
-	fi
+	bitmagnet_config_files="${bitmagnet_config_filename} ${bitmagnet_classifier_filename}"
 
-	if [[ -f "${bitmagnet_config_path}/${bitmagnet_config_filename}" ]]; then
-		# symlink config.yml to the correct location for bitmagnet
-		ln -fs "${bitmagnet_config_path}/${bitmagnet_config_filename}" "${bitmagnet_install_path}/${bitmagnet_config_filename}"
-	fi
+	# check if bitmagnet config files exist, if not copy example files
+	for bitmagnet_config_file in ${bitmagnet_config_files}; do
+
+		if [[ ! -f "${bitmagnet_config_path}/${bitmagnet_config_file}" && ! -f "${bitmagnet_config_path}/${bitmagnet_config_file}.example" ]]; then
+			echo "[info] Copying example bitmgnet ${bitmagnet_config_file} file..."
+			cp "/home/nobody/${bitmagnet_config_file}.example" "${bitmagnet_config_path}/${bitmagnet_config_file}.example"
+		else
+			echo "[info] bitmagnet ${bitmagnet_config_file} file already exists, skipping copy..."
+		fi
+
+		if [[ -f "${bitmagnet_config_path}/${bitmagnet_config_file}" ]]; then
+			# symlink config.yml/classifier.yml to the correct location for bitmagnet
+			ln -fs "${bitmagnet_config_path}/${bitmagnet_config_file}" "${bitmagnet_install_path}/${bitmagnet_config_file}"
+		else
+			# unlink symlink if the file does not exist (renamed or deleted)
+			unlink "${bitmagnet_install_path}/${bitmagnet_config_file}" 2>/dev/null
+		fi
+	done
 }
 
 function database_version_check() {
@@ -84,8 +94,20 @@ function wait_for_database() {
 }
 
 function run_bitmagnet() {
-	# change to loction of bitmagnet install path to ensure working directory is correctly set to pick up config.yml
+	# change to loction of bitmagnet install path to ensure working directory is correctly set to pick up config.yml/classifier.yml
 	cd "${bitmagnet_install_path}" || exit 1
+
+	# if classifier file exists then disable config.yml and set workflow to custom
+	if [[ -f "${bitmagnet_config_path}/${bitmagnet_classifier_filename}" ]]; then
+		echo "[info] bitmagnet classifier file found"
+		if [[ -f "${bitmagnet_config_path}/${bitmagnet_config_filename}" ]]; then
+			echo "[info] Renaming ${bitmagnet_config_filename} as we cannot have both ${bitmagnet_classifier_filename} and ${bitmagnet_config_filename} defined..."
+			mv -f "${bitmagnet_config_path}/${bitmagnet_config_filename}" "${bitmagnet_config_path}/${bitmagnet_config_filename}.disabled"
+		fi
+		echo "[info] Setting variable for custom workflow..."
+		export CLASSIFIER_WORKFLOW=custom
+	fi
+
 	# run bitmagnet in the foreground.
 	"${bitmagnet_install_path}/bitmagnet" worker run --keys=http_server --keys=queue_server --keys=dht_crawler
 }

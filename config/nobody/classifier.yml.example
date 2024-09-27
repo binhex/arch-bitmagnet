@@ -1,0 +1,70 @@
+$schema: "https://bitmagnet.io/schemas/classifier-0.1.json"
+
+# Example (advanced) configuration file for bitmagnet - see https://bitmagnet.io/guides/classifier.html
+# for further details.
+#
+# Any configuration defined below will be merged with the existing core classifier
+# see https://github.com/bitmagnet-io/bitmagnet/blob/main/internal/classifier/classifier.core.yaml
+#
+# To make this file active please remove the extension '.example' from the filename and restart the
+# container.
+#
+extensions:                     # define list of file extensions to match index title
+  audiobook:                    # define additional file extensions to add to the list for classification 'audiobook'
+    - mp3                       # matches extension "mp3"
+    - flac                      # matches extension "flac"
+  movie:                        # define additional file extensions to add to the list for classification 'movie'
+    - mkv                       # matches extension "mkv"
+    - mp4                       # matches extension "mp4"
+  software:                     # define additional file extensions to add to the list for classification 'software'
+    - iso                       # matches extension "iso"
+    - exe                       # matches extension "exe"
+
+keywords:
+  music:                        # define additional keywords to add to the list for classification 'music'
+    - music                     # all letters are case-insensitive, and must be defined in lowercase unless escaped
+    - discography               # matches "discography" and "Discography"
+    - \V.?\A                    # escaped letters are case-sensitive; matches "VA", "V.A" and "V.A.", but not "va"
+    - various artists           # matches "various artists" and "Various.Artists"
+  audiobook:                    # define additional keywords to add to the list for classification 'audiobook'
+    - (audio)?books?            # matches audio book, audiobook, audiobooks, book, books
+    - (un)?abridged             # matches unabridged, abridged, unabridged
+    - narrated                  # matches narrated and Narrated
+    - novels?                   # matches novel and novels
+    - (auto)?biograph(y|ies)    # matches biography, biographies, autobiography and autobiographies
+  banned:                       # define additional keywords to add to the list for classification 'banned'
+    - my-hated-keyword          # matches "my-hated-keyword" and "My-Hated-Keyword"
+
+# custom workflow demonstrating regex match and delete for content type movie or tv show
+workflows:
+  custom:
+    # first run the default workflow:
+    - run_workflow: default
+    # filter specific content
+    - if_else:
+        condition: "result.contentType in [contentType.movie, contentType.tv_show]"
+        if_action:
+          find_match:
+            - if_else:
+                condition:
+                  or:
+                    # remove any torrent basename or filename that contains regex '^my-regex-here$'
+                    - "torrent.baseName.matches('^my-regex-here$')"
+                    - "([torrent.baseName] + torrent.files.map(f, f.basePath)).join(' ').matches('^my-regex-here$')"
+                if_action: delete
+
+flags:
+  local_search_enabled: true    # define whether to enable local search
+  apis_enabled: true            # define whether to enable external API search
+  tmdb_enabled: true            # define whether to enable TMDB search
+  delete_xxx: false             # define whether to delete content with classification 'xxx'
+  delete_content_types:         # define list of categories to ignore, note this does not retrospectively delete existing indexed content
+    - movie
+    - tv_show
+    - music
+    - ebook
+    - comic
+    - audiobook
+    - game
+    - software
+    - xxx
