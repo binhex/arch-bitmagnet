@@ -99,9 +99,9 @@ function run_bitmagnet() {
 
 	# if classifier file exists then disable config.yml and set workflow to custom
 	if [[ -f "${bitmagnet_config_path}/${bitmagnet_classifier_filename}" ]]; then
-		echo "[info] bitmagnet classifier file found"
+		echo "[info] bitmagnet ${bitmagnet_classifier_filename} found"
 		if [[ -f "${bitmagnet_config_path}/${bitmagnet_config_filename}" ]]; then
-			echo "[info] Renaming ${bitmagnet_config_filename} as we cannot have both ${bitmagnet_classifier_filename} and ${bitmagnet_config_filename} defined..."
+			echo "[info] Renaming ${bitmagnet_config_filename} to ${bitmagnet_config_filename}.disabled as we cannot have both ${bitmagnet_classifier_filename} and ${bitmagnet_config_filename} defined..."
 			mv -f "${bitmagnet_config_path}/${bitmagnet_config_filename}" "${bitmagnet_config_path}/${bitmagnet_config_filename}.disabled"
 		fi
 		echo "[info] Setting variable for custom workflow..."
