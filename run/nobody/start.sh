@@ -13,7 +13,20 @@ bitmagnet_classifier_filename="classifier.yml"
 # source in script to wait for child processes to exit
 source /usr/local/bin/waitproc.sh
 
-function copy_example_bitmagnet_config() {
+function check_for_classifier_file() {
+	# if classifier file exists then rename config.yml and set classifier workflow to custom
+	if [[ -f "${bitmagnet_config_path}/${bitmagnet_classifier_filename}" ]]; then
+		echo "[info] bitmagnet ${bitmagnet_classifier_filename} found"
+		if [[ -f "${bitmagnet_config_path}/${bitmagnet_config_filename}" ]]; then
+			echo "[info] Renaming ${bitmagnet_config_filename} to ${bitmagnet_config_filename}.disabled as we cannot have both ${bitmagnet_classifier_filename} and ${bitmagnet_config_filename} defined..."
+			mv -f "${bitmagnet_config_path}/${bitmagnet_config_filename}" "${bitmagnet_config_path}/${bitmagnet_config_filename}.disabled"
+		fi
+		echo "[info] Setting variable for custom workflow..."
+		export CLASSIFIER_WORKFLOW=custom
+	fi
+}
+
+function copy_example_files() {
 	mkdir -p "${bitmagnet_config_path}"
 
 	bitmagnet_config_files="${bitmagnet_config_filename} ${bitmagnet_classifier_filename}"
@@ -97,24 +110,14 @@ function run_bitmagnet() {
 	# change to loction of bitmagnet install path to ensure working directory is correctly set to pick up config.yml/classifier.yml
 	cd "${bitmagnet_install_path}" || exit 1
 
-	# if classifier file exists then disable config.yml and set workflow to custom
-	if [[ -f "${bitmagnet_config_path}/${bitmagnet_classifier_filename}" ]]; then
-		echo "[info] bitmagnet ${bitmagnet_classifier_filename} found"
-		if [[ -f "${bitmagnet_config_path}/${bitmagnet_config_filename}" ]]; then
-			echo "[info] Renaming ${bitmagnet_config_filename} to ${bitmagnet_config_filename}.disabled as we cannot have both ${bitmagnet_classifier_filename} and ${bitmagnet_config_filename} defined..."
-			mv -f "${bitmagnet_config_path}/${bitmagnet_config_filename}" "${bitmagnet_config_path}/${bitmagnet_config_filename}.disabled"
-		fi
-		echo "[info] Setting variable for custom workflow..."
-		export CLASSIFIER_WORKFLOW=custom
-	fi
-
 	# run bitmagnet in the foreground.
 	"${bitmagnet_install_path}/bitmagnet" worker run --keys=http_server --keys=queue_server --keys=dht_crawler
 }
 
 function main() {
 	# Run the functions in the correct order
-	copy_example_bitmagnet_config
+	check_for_classifier_file
+	copy_example_files
 	database_version_check
 	init_database
 	run_postgres
