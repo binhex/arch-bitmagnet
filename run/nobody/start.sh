@@ -14,15 +14,22 @@ bitmagnet_classifier_filename="classifier.yml"
 source /usr/local/bin/waitproc.sh
 
 function check_for_classifier_file() {
-	# if classifier file exists then rename config.yml and set classifier workflow to custom
+	# if classifier file exists then rename config.yml to config.yml.disabled and set classifier workflow to custom
 	if [[ -f "${bitmagnet_config_path}/${bitmagnet_classifier_filename}" ]]; then
 		echo "[info] bitmagnet ${bitmagnet_classifier_filename} found"
 		if [[ -f "${bitmagnet_config_path}/${bitmagnet_config_filename}" ]]; then
 			echo "[info] Renaming ${bitmagnet_config_filename} to ${bitmagnet_config_filename}.disabled as we cannot have both ${bitmagnet_classifier_filename} and ${bitmagnet_config_filename} defined..."
 			mv -f "${bitmagnet_config_path}/${bitmagnet_config_filename}" "${bitmagnet_config_path}/${bitmagnet_config_filename}.disabled"
 		fi
-		echo "[info] Setting variable for custom workflow..."
+		echo "[info] Setting env var for custom workflow..."
 		export CLASSIFIER_WORKFLOW=custom
+	# if classifier file does not exist and config.yml.disabled exists then re-enable config.yml by renaming config.yml.disabled to config.yml
+	else
+		echo "[info] bitmagnet ${bitmagnet_classifier_filename} not found"
+		if [[ -f "${bitmagnet_config_path}/${bitmagnet_config_filename}.disabled" ]]; then
+			echo "[info] Renaming ${bitmagnet_config_path}/${bitmagnet_config_filename}.disabled to ${bitmagnet_config_path}/${bitmagnet_config_filename} as no ${bitmagnet_classifier_filename} found..."
+			mv -f "${bitmagnet_config_path}/${bitmagnet_config_filename}.disabled" "${bitmagnet_config_path}/${bitmagnet_config_filename}"
+		fi
 	fi
 }
 
