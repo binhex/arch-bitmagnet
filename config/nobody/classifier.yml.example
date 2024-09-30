@@ -9,38 +9,51 @@ $schema: "https://bitmagnet.io/schemas/classifier-0.1.json"
 # To make this file active please remove the extension '.example' from the filename and restart the
 # container.
 #
-extensions:                     # define list of file extensions to match index title
-  audiobook:                    # define additional file extensions to add to the list for classification 'audiobook'
-    - mp3                       # matches extension "mp3"
-    - flac                      # matches extension "flac"
-  movie:                        # define additional file extensions to add to the list for classification 'movie'
-    - mkv                       # matches extension "mkv"
-    - mp4                       # matches extension "mp4"
-  software:                     # define additional file extensions to add to the list for classification 'software'
-    - iso                       # matches extension "iso"
-    - exe                       # matches extension "exe"
+extensions:                     # define list of file extensions, used later on in custom workflow
+  video_movie:
+    - mkv
+    - mp4
+    - avi
+    - mov
+    - wmv
+    - webm
+    - divx
 
 keywords:
-  music:                        # define additional keywords to add to the list for classification 'music'
-    - music                     # all letters are case-insensitive, and must be defined in lowercase unless escaped
-    - discography               # matches "discography" and "Discography"
-    - \V.?\A                    # escaped letters are case-sensitive; matches "VA", "V.A" and "V.A.", but not "va"
-    - various artists           # matches "various artists" and "Various.Artists"
-  audiobook:                    # define additional keywords to add to the list for classification 'audiobook'
-    - (audio)?books?            # matches audio book, audiobook, audiobooks, book, books
-    - (un)?abridged             # matches unabridged, abridged, unabridged
-    - narrated                  # matches narrated and Narrated
-    - novels?                   # matches novel and novels
-    - (auto)?biograph(y|ies)    # matches biography, biographies, autobiography and autobiographies
-  banned:                       # define additional keywords to add to the list for classification 'banned'
-    - my-hated-keyword          # matches "my-hated-keyword" and "My-Hated-Keyword"
+  music:                         # define additional keywords to add to the list for classification 'music'
+    - music                      # all letters are case-insensitive, and must be defined in lowercase unless escaped
+    - discography                # matches "discography" and "Discography"
+    - \V.?\A                     # escaped letters are case-sensitive; matches "VA", "V.A" and "V.A.", but not "va"
+    - various artists            # matches "various artists" and "Various.Artists"
+  audiobook:                     # define additional keywords to add to the list for classification 'audiobook'
+    - (audio)?books?             # matches audio book, audiobook, audiobooks, book, books
+    - (un)?abridged              # matches unabridged, abridged, unabridged
+    - narrated                   # matches narrated and Narrated
+    - novels?                    # matches novel and novels
+    - (auto)?biograph(y|ies)     # matches biography, biographies, autobiography and autobiographies
+  banned:                        # define additional keywords to add to the list for classification 'banned'
+    - my-hated-keyword           # matches "my-hated-keyword" and "My-Hated-Keyword"
+    - "*my-hated-keyword*"       # fuzzy match "my-hated-keyword"
 
 # custom workflow demonstrating regex match and delete for content type movie or tv show
+#
+# extend the default workflow with a custom workflow:
 workflows:
   custom:
     # first run the default workflow:
     - run_workflow: default
     # filter specific content
+    - if_else:
+        condition: "result.contentType in [contentType.movie, contentType.tv_show, contentType.unknown]"
+        if_action:
+          find_match:
+            - if_else:
+                condition:
+                  or:
+                    # remove any magnet in content type movies, tv series or unknown that contains a torrent filename or basename that matches any of the defined banned keywords
+                    - "torrent.baseName.matches(keywords.banned)"
+                    - "([torrent.baseName] + torrent.files.map(f, f.basePath)).join(' ').matches(keywords.banned)"
+                if_action: delete
     - if_else:
         condition: "result.contentType in [contentType.movie, contentType.tv_show]"
         if_action:
@@ -48,23 +61,25 @@ workflows:
             - if_else:
                 condition:
                   or:
-                    # remove any torrent basename or filename that contains regex '^my-regex-here$'
-                    - "torrent.baseName.matches('^my-regex-here$')"
-                    - "([torrent.baseName] + torrent.files.map(f, f.basePath)).join(' ').matches('^my-regex-here$')"
+                    # remove any magnet in content type movies or tv series that matches the extensions video_movie and is 200 MB or larger and contains a torrent filename with 2 or more consecutive non ascii characters
+                    - "torrent.files.filter(f, f.extension in extensions.video_movie && f.size > 200*mb).map(f, f.basePath).join(' ').matches('.*[^\x00-\x7F]{2,}.*')"
                 if_action: delete
+    - if_else:
+        condition: "result.contentType in [contentType.unknown]"
+        if_action:
+          find_match:
+            - if_else:
+                condition:
+                  or:
+                    # remove any magnet in content type unknown that contains a torrent filename with any non ascii characters
+                    - "([torrent.baseName] + torrent.files.map(f, f.basePath)).join(' ').matches('.*[^\x00-\x7F].*')"
+                if_action:
+                  add_tag: foreign-unknown
 
 flags:
   local_search_enabled: true    # define whether to enable local search
   apis_enabled: true            # define whether to enable external API search
   tmdb_enabled: true            # define whether to enable TMDB search
-  delete_xxx: false             # define whether to delete content with classification 'xxx'
-  delete_content_types:         # define list of categories to ignore, note this does not retrospectively delete existing indexed content
-    - movie
-    - tv_show
-    - music
-    - ebook
-    - comic
-    - audiobook
-    - game
-    - software
+  delete_xxx: true              # define whether to delete content with classification 'xxx'
+  delete_content_types:         # define list of categories to delete, note this does not retrospectively delete existing indexed content
     - xxx
