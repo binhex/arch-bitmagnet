@@ -58,6 +58,13 @@ function copy_example_files() {
 	done
 }
 
+function delete_pid_file() {
+	if [ -f "${postgres_data}/postmaster.pid" ]; then
+		echo "[info] Deleting ${postgres_data}/postmaster.pid from previous run..."
+		rm -f "${postgres_data}/postmaster.pid"
+	fi
+}
+
 function database_version_check() {
 	# Prints the warning message if the database version on disk
 	# does not match the PostgreSQL major version.
@@ -125,6 +132,7 @@ function main() {
 	# Run the functions in the correct order
 	check_for_classifier_file
 	copy_example_files
+	delete_pid_file
 	database_version_check
 	init_database
 	run_postgres
