@@ -39,7 +39,12 @@ mv /tmp/scripts-master/shell/arch/docker/*.sh /usr/local/bin/
 ####
 
 # define pacman packages
-pacman_packages="go git postgresql postgresql-libs sqlite jq"
+#
+# IMPORTANT AOR package 'postgresql-old-upgrade' is the previous version to the current version of the 'postgresql' package,
+# in this case the previous version is v16 but this may change over time, we need to keep an eye on this package version,
+# if it looks like it will be bumped up then we need to code up to perform the dump and load of the data during the postgreql
+# upgrade.
+pacman_packages="go git postgresql-old-upgrade postgresql-libs sqlite jq"
 
 # install compiled packages using pacman
 if [[ ! -z "${pacman_packages}" ]]; then
@@ -118,7 +123,7 @@ source aur.sh
 ####
 
 # define comma separated list of paths
-install_paths="/opt/bitmagnet,/run/postgresql,/var/lib/postgres,/home/nobody"
+install_paths="/opt/bitmagnet,/run/postgresql,/opt/pgsql-16,/home/nobody"
 
 # split comma separated string into list for install paths
 IFS=',' read -ra install_paths_list <<< "${install_paths}"

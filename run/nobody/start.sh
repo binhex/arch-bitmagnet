@@ -5,6 +5,7 @@ postgres_username=postgres
 postgres_password=postgres
 postgres_database=bitmagnet
 postgres_data=/config/postgres/data
+postgres_install_path='/opt/pgsql-16'
 bitmagnet_install_path="/opt/bitmagnet"
 bitmagnet_config_path="/config/bitmagnet"
 bitmagnet_config_filename="config.yml"
@@ -65,14 +66,6 @@ function delete_pid_file() {
 	fi
 }
 
-function database_version_check() {
-	# Prints the warning message if the database version on disk
-	# does not match the PostgreSQL major version.
-	if [ -d "${postgres_data}" ]; then
-		/usr/bin/postgresql-check-db-dir "${postgres_data}" || true
-	fi
-}
-
 function init_database() {
 	# Initialize the database if it is not already initialized.
 	if [ ! -s "${postgres_data}/PG_VERSION" ]; then
@@ -82,7 +75,7 @@ function init_database() {
 		echo "${postgres_password}" > "${temp_password_file}"
 
 		# Initialize the database with the specified username and password
-		initdb --locale=C.UTF-8 --encoding=UTF8 -D "${postgres_data}" --username="${postgres_username}" --pwfile="${temp_password_file}"
+		"${postgres_install_path}/bin/initdb" --locale=C.UTF-8 --encoding=UTF8 -D "${postgres_data}" --username="${postgres_username}" --pwfile="${temp_password_file}"
 
 		# Remove the temporary password file
 		rm -f "${temp_password_file}"
@@ -92,28 +85,28 @@ function init_database() {
 
 function run_postgres() {
 	# run postgres in the background.
-	/usr/bin/postgres -D "${postgres_data}" &
+	"${postgres_install_path}/bin/postgres" -D "${postgres_data}" -h '127.0.0.1' &
 }
 
 function wait_for_postgres() {
-    until pg_isready -q -d "${postgres_database}" -U "${postgres_username}"; do
+    until "${postgres_install_path}/bin/pg_isready" -q -d "${postgres_database}" -h '127.0.0.1' -U "${postgres_username}"; do
         echo "[info] Waiting for PostgreSQL to be ready..."
         sleep 1s
     done
-    echo "PostgreSQL is ready."
+    echo "[info] PostgreSQL is ready."
 }
 
 function create_database() {
 	# Export the PostgreSQL password to avoid being prompted
 	export PGPASSWORD="${postgres_password}"
 	# Create the database if it does not exist.
-	if [ -z "$(psql -U "${postgres_username}" -d "${postgres_database}" -Atqc "\\list ${postgres_database}")" ]; then
-		createdb -U "${postgres_username}" "${postgres_database}"
+	if [ -z "$("${postgres_install_path}/bin/psql" -U "${postgres_username}" -d "${postgres_database}" -h '127.0.0.1' -Atqc "\\list ${postgres_database}")" ]; then
+		"${postgres_install_path}/bin/createdb" -U "${postgres_username}" "${postgres_database}" -h '127.0.0.1'
 	fi
 }
 
 function wait_for_database() {
-    until psql -U "${postgres_username}" -d "${postgres_database}" -c '\q' 2>/dev/null; do
+    until "${postgres_install_path}/bin/psql" -U "${postgres_username}" -d "${postgres_database}" -h '127.0.0.1' -c '\q' 2>/dev/null; do
         echo "[info] Waiting for database ${postgres_database} to be created..."
         sleep 1s
     done
@@ -133,7 +126,6 @@ function main() {
 	check_for_classifier_file
 	copy_example_files
 	delete_pid_file
-	database_version_check
 	init_database
 	run_postgres
 	wait_for_postgres
