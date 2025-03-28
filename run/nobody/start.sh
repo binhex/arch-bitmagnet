@@ -1,15 +1,16 @@
 #!/usr/bin/dumb-init /bin/bash
 
 # define variables, note bitmagnet uses hardcoded values for database and credentials
-postgres_username=postgres
-postgres_password=postgres
-postgres_database=bitmagnet
-postgres_data=/config/postgres/data
+postgres_host='127.0.0.1'
+postgres_username='postgres'
+postgres_password='postgres'
+postgres_database='bitmagnet'
+postgres_data='/config/postgres/data'
 postgres_install_path='/opt/pgsql-16'
-bitmagnet_install_path="/opt/bitmagnet"
-bitmagnet_config_path="/config/bitmagnet"
-bitmagnet_config_filename="config.yml"
-bitmagnet_classifier_filename="classifier.yml"
+bitmagnet_install_path='/opt/bitmagnet'
+bitmagnet_config_path='/config/bitmagnet'
+bitmagnet_config_filename='config.yml'
+bitmagnet_classifier_filename='classifier.yml'
 
 # source in script to wait for child processes to exit
 source /usr/local/bin/waitproc.sh
@@ -85,11 +86,11 @@ function init_database() {
 
 function run_postgres() {
 	# run postgres in the background.
-	"${postgres_install_path}/bin/postgres" -D "${postgres_data}" -h '127.0.0.1' &
+	"${postgres_install_path}/bin/postgres" -D "${postgres_data}" -h "${postgres_host}" &
 }
 
 function wait_for_postgres() {
-    until "${postgres_install_path}/bin/pg_isready" -q -d "${postgres_database}" -h '127.0.0.1' -U "${postgres_username}"; do
+    until "${postgres_install_path}/bin/pg_isready" -q -d "${postgres_database}" -h "${postgres_host}" -U "${postgres_username}"; do
         echo "[info] Waiting for PostgreSQL to be ready..."
         sleep 1s
     done
@@ -100,13 +101,13 @@ function create_database() {
 	# Export the PostgreSQL password to avoid being prompted
 	export PGPASSWORD="${postgres_password}"
 	# Create the database if it does not exist.
-	if [ -z "$("${postgres_install_path}/bin/psql" -U "${postgres_username}" -d "${postgres_database}" -h '127.0.0.1' -Atqc "\\list ${postgres_database}")" ]; then
-		"${postgres_install_path}/bin/createdb" -U "${postgres_username}" "${postgres_database}" -h '127.0.0.1'
+	if [ -z "$("${postgres_install_path}/bin/psql" -U "${postgres_username}" -d "${postgres_database}" -h "${postgres_host}" -Atqc "\\list ${postgres_database}")" ]; then
+		"${postgres_install_path}/bin/createdb" -U "${postgres_username}" "${postgres_database}" -h "${postgres_host}"
 	fi
 }
 
 function wait_for_database() {
-    until "${postgres_install_path}/bin/psql" -U "${postgres_username}" -d "${postgres_database}" -h '127.0.0.1' -c '\q' 2>/dev/null; do
+    until "${postgres_install_path}/bin/psql" -U "${postgres_username}" -d "${postgres_database}" -h "${postgres_host}" -c '\q' 2>/dev/null; do
         echo "[info] Waiting for database ${postgres_database} to be created..."
         sleep 1s
     done
