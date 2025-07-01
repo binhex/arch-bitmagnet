@@ -15,7 +15,6 @@ Latest GitHub release.
 
 ```bash
 docker run -d \
-
     --name=<container name> \
     -p <webui port>:3333 \
     -p <bittorrent port tcp>:3344 \
@@ -26,9 +25,7 @@ docker run -d \
     -e UMASK=<umask for created files> \
     -e PUID=<uid for user> \
     -e PGID=<gid for user> \
-
     binhex/arch-bitmagnet
-
 ```
 
 Please replace all user variables in the above command defined by <> with the
@@ -42,7 +39,6 @@ correct values.
 
 ```bash
 docker run -d \
-
     --name=bitmagnet \
     -p 3333:3333 \
     -p 3344:3344 \
@@ -53,9 +49,7 @@ docker run -d \
     -e UMASK=000 \
     -e PUID=0 \
     -e PGID=0 \
-
     binhex/arch-bitmagnet
-
 ```
 
 ## Notes
@@ -65,7 +59,6 @@ command for the user you want to run the container as:-
 
 ```bash
 id <username>
-
 ```
 
 ___
