@@ -13,7 +13,7 @@ bitmagnet_config_filename='config.yml'
 bitmagnet_classifier_filename='classifier.yml'
 
 # source in script to wait for child processes to exit
-source /usr/local/bin/waitproc.sh
+source waitproc.sh
 
 function check_for_classifier_file() {
 	# if classifier file exists then rename config.yml to config.yml.disabled and set classifier workflow to custom
