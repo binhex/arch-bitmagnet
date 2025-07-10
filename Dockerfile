@@ -1,4 +1,4 @@
-FROM binhex/arch-base:latest
+FROM 49f260298052
 LABEL org.opencontainers.image.authors="binhex"
 LABEL org.opencontainers.image.source="https://github.com/binhex/arch-bitmagnet"
 
@@ -41,4 +41,4 @@ HEALTHCHECK --interval=1m --timeout=3s \
 #################
 
 # run script to set uid, gid and permissions
-CMD ["/bin/bash", "/usr/local/bin/init.sh"]
+CMD ["/bin/bash", "init.sh"]
