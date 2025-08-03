@@ -1,4 +1,4 @@
-FROM 49f260298052
+FROM binhex/arch-base:latest
 LABEL org.opencontainers.image.authors="binhex"
 LABEL org.opencontainers.image.source="https://github.com/binhex/arch-bitmagnet"
 
