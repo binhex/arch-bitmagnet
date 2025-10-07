@@ -115,15 +115,6 @@ mkdir -p /run/postgresql
 # add bitmagnet to path to ease user interaction via console
 echo "export PATH=${install_path}:\${PATH}" >> '/home/nobody/.bashrc'
 
-# aur packages
-####
-
-# define aur packages
-aur_packages=""
-
-# call aur install script (arch user repo)
-source aur.sh
-
 # container perms
 ####
 
