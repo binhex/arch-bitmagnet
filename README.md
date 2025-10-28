@@ -22,6 +22,8 @@ docker run -d \
     -p <postgres port>:5432 \
     -v <path for config files>:/config \
     -v /etc/localtime:/etc/localtime:ro \
+    -e TMDB_API_KEY=<tmdb key> \
+    -e PROCESSOR_CONCURRENCY=<int> \
     -e POSTGRES_VACUUM_DB=<true|false> \
     -e POSTGRES_REINDEX_DB=<true|false> \
     -e HEALTHCHECK_COMMAND=<command> \
