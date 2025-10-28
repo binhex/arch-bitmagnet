@@ -66,48 +66,51 @@ fi
 # working yet for jacket (see https://github.com/Jackett/Jackett/pull/13996) or prowlarr
 # (see https://github.com/Prowlarr/Prowlarr/issues/379#issuecomment-1509457805)
 #
-max_limit='5000'
-default_limit='100'
 
 download_path="/tmp/bitmagnet"
 install_path="/opt/bitmagnet"
 
-mkdir -p "${install_path}"
+mkdir -p "${download_path}" "${install_path}"
 
-# download bitmagnet from releases
-github.sh --install-path "${download_path}" --github-owner 'bitmagnet-io' --github-repo 'bitmagnet' --query-type 'release' --download-branch 'main'
+# download bitmagnet source code release via gh script
+gh.sh --github-owner bitmagnet-io --github-repo bitmagnet --download-type release --release-type source --download-path "${download_path}"
+
+# unpack to install path
+tar -xvf "${download_path}/"*.tar.gz -C "${download_path}"
+
+# safely expand glob into an array (enable nullglob so pattern with no matches yields empty array)
+shopt -s nullglob
+# note new location from source and will be in next release is '"${download_path}/"bitmagnet*/internal/torznab/profile.go'
+_matches=( "${download_path}"/bitmagnet*/internal/torznab/adapter/adapter.go )
+shopt -u nullglob
+
+if [[ ${#_matches[@]} -eq 0 ]]; then
+	echo "[crit] Could not find adapter.go under ${download_path}, exiting build process..." ; exit 1
+fi
+
+limit_source_filepath="${_matches[0]}"
+
+max_limit='5000'
+default_limit='100'
 
 # update result limit for bitmagnet to ensure we don't miss any new magnets due
 # to the current max limit of 100, note we keep the default limit at 100, so
 # unless you specify 'limit=xxxx' in the query then you will only get a maximum
 # of 100 results returned
-sed -i -e "s~maxLimit:[[:space:]]*[[:digit:]]*.*~maxLimit:     ${max_limit},~g" "${download_path}/internal/torznab/adapter/adapter.go"
-sed -i -e "s~defaultLimit:[[:space:]]*[[:digit:]]*.*~defaultLimit: ${default_limit},~g" "${download_path}/internal/torznab/adapter/adapter.go"
-
-# switch sort order to be 'published' date not 'relevance', as relevance does
-# not list latest added magnets first and thus you may end up missing new magnets
-#
-# create function to order by published_at in options.go
-cat <<EOF >> "${download_path}/internal/database/query/options.go"
-func OrderByPublishedAt() Option {
-	return func(ctx OptionBuilder) (OptionBuilder, error) {
-		return ctx.OrderBy(OrderByColumn{
-			OrderByColumn: clause.OrderByColumn{
-				Column:  clause.Column{Name: "published_at"},
-				Desc:    true,
-				Reorder: true,
-			},
-		}), nil
-	}
-}
-
-EOF
-
-# reference new function created in options.go to order by published_at
-sed -i -e 's~options = append(options, query.QueryString(r.Query), query.OrderByQueryStringRank())~options = append(options, query.QueryString(r.Query), query.OrderByPublishedAt())~g' "${download_path}/internal/torznab/adapter/search.go"
+sed -i -E "s~MaxLimit:.*,$~MaxLimit:     ${max_limit},~g" "${limit_source_filepath}"
+sed -i -E "s~DefaultLimit:.*,$~DefaultLimit: ${default_limit},~g" "${limit_source_filepath}"
 
 # set location to install bitmagnet via GOBIN and then go install
-cd "${download_path}" && GOBIN="${install_path}" go install
+# safely expand glob into an array to find bitmagnet directory
+shopt -s nullglob
+_bitmagnet_dirs=( "${download_path}"/bitmagnet* )
+shopt -u nullglob
+
+if [[ ${#_bitmagnet_dirs[@]} -eq 0 ]]; then
+	echo "[crit] Could not find bitmagnet directory under ${download_path}, exiting build process..." ; exit 1
+fi
+
+cd "${_bitmagnet_dirs[0]}" && GOBIN="${install_path}" go install
 
 # create path to store postgres lock file
 mkdir -p /run/postgresql
@@ -169,6 +172,36 @@ sed -i '/# PERMISSIONS_PLACEHOLDER/{
     r /tmp/permissions_heredoc
 }' /usr/bin/init.sh
 rm /tmp/permissions_heredoc
+
+# env vars
+####
+
+cat <<'EOF' > /tmp/envvars_heredoc
+
+export POSTGRES_VACUUM_DB=$(echo "${POSTGRES_VACUUM_DB}" | sed -e 's~^[ \t]*~~;s~[ \t]*$~~')
+if [[ ! -z "${POSTGRES_VACUUM_DB}" ]]; then
+	echo "[info] POSTGRES_VACUUM_DB defined as '${POSTGRES_VACUUM_DB}'" | ts '%Y-%m-%d %H:%M:%.S'
+else
+	echo "[info] POSTGRES_VACUUM_DB not defined,(via -e POSTGRES_VACUUM_DB), defaulting to 'false'" | ts '%Y-%m-%d %H:%M:%.S'
+	export POSTGRES_VACUUM_DB="false"
+fi
+
+export POSTGRES_REINDEX_DB=$(echo "${POSTGRES_REINDEX_DB}" | sed -e 's~^[ \t]*~~;s~[ \t]*$~~')
+if [[ ! -z "${POSTGRES_REINDEX_DB}" ]]; then
+	echo "[info] POSTGRES_REINDEX_DB defined as '${POSTGRES_REINDEX_DB}'" | ts '%Y-%m-%d %H:%M:%.S'
+else
+	echo "[info] POSTGRES_REINDEX_DB not defined,(via -e POSTGRES_REINDEX_DB), defaulting to 'false'" | ts '%Y-%m-%d %H:%M:%.S'
+	export POSTGRES_REINDEX_DB="false"
+fi
+
+EOF
+
+# replace env vars placeholder string with contents of file (here doc)
+sed -i '/# ENVVARS_PLACEHOLDER/{
+    s/# ENVVARS_PLACEHOLDER//g
+    r /tmp/envvars_heredoc
+}' /usr/bin/init.sh
+rm /tmp/envvars_heredoc
 
 # cleanup
 cleanup.sh

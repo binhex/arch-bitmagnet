@@ -21,7 +21,9 @@ docker run -d \
     -p <bittorrent port udp>:3344/udp \
     -p <postgres port>:5432 \
     -v <path for config files>:/config \
-    -v /etc/localtime:/etc/localtime:ro
+    -v /etc/localtime:/etc/localtime:ro \
+    -e POSTGRES_VACUUM_DB=<true|false> \
+    -e POSTGRES_REINDEX_DB=<true|false> \
     -e HEALTHCHECK_COMMAND=<command> \
     -e HEALTHCHECK_ACTION=<action> \
     -e HEALTHCHECK_HOSTNAME=<hostname> \

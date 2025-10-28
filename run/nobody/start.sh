@@ -114,6 +114,46 @@ function wait_for_database() {
     echo "[info] Database ${postgres_database} has been created."
 }
 
+function vacuum_database() {
+	# Perform FULL VACUUM on the database if requested via environment variable
+	if [[ "${POSTGRES_VACUUM_DB}" == "true" ]]; then
+		echo "[info] Performing FULL VACUUM on database ${postgres_database}..."
+		echo "[info] This operation may take a significant amount of time and will lock tables..."
+
+		# Export the PostgreSQL password to avoid being prompted
+		export PGPASSWORD="${postgres_password}"
+
+		# Perform FULL VACUUM on the database
+		if "${postgres_install_path}/bin/psql" -U "${postgres_username}" -d "${postgres_database}" -h "${postgres_host}" -c "VACUUM FULL;" 2>/dev/null; then
+			echo "[info] FULL VACUUM completed successfully"
+		else
+			echo "[warn] FULL VACUUM failed or was interrupted"
+		fi
+	else
+		echo "[info] FULL VACUUM skipped (set POSTGRES_VACUUM_DB=true to enable)"
+	fi
+}
+
+function reindex_database() {
+	# Perform REINDEX on the database if requested via environment variable
+	if [[ "${POSTGRES_REINDEX_DB}" == "true" ]]; then
+		echo "[info] Performing REINDEX on database ${postgres_database}..."
+		echo "[info] This operation may take a significant amount of time and will lock tables..."
+
+		# Export the PostgreSQL password to avoid being prompted
+		export PGPASSWORD="${postgres_password}"
+
+		# Perform REINDEX on the entire database
+		if "${postgres_install_path}/bin/psql" -U "${postgres_username}" -d "${postgres_database}" -h "${postgres_host}" -c "REINDEX DATABASE ${postgres_database};" 2>/dev/null; then
+			echo "[info] REINDEX completed successfully"
+		else
+			echo "[warn] REINDEX failed or was interrupted"
+		fi
+	else
+		echo "[info] REINDEX skipped (set POSTGRES_REINDEX_DB=true to enable)"
+	fi
+}
+
 function run_bitmagnet() {
 	# change to loction of bitmagnet install path to ensure working directory is correctly set to pick up config.yml/classifier.yml
 	cd "${bitmagnet_install_path}" || exit 1
@@ -132,6 +172,11 @@ function main() {
 	wait_for_postgres
 	create_database
 	wait_for_database
+
+	# Optional database maintenance operations
+	vacuum_database
+	reindex_database
+
 	run_bitmagnet
 }
 
