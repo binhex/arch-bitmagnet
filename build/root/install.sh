@@ -72,26 +72,21 @@ install_path="/opt/bitmagnet"
 
 mkdir -p "${download_path}" "${install_path}"
 
-# download bitmagnet source code release via gh script
-gh.sh --github-owner bitmagnet-io --github-repo bitmagnet --download-type release --release-type source --download-path "${download_path}"
+# download bitmagnet source code via gh script
+gh.sh --github-owner bitmagnet-io --github-repo bitmagnet --download-type clone --download-path "${download_path}"
 
-# unpack to install path
-tar -xvf "${download_path}/"*.tar.gz -C "${download_path}"
-
-# safely expand glob into an array (enable nullglob so pattern with no matches yields empty array)
-shopt -s nullglob
-# note new location from source and will be in next release is '"${download_path}/"bitmagnet*/internal/torznab/profile.go'
-_matches=( "${download_path}"/bitmagnet*/internal/torznab/adapter/adapter.go )
-shopt -u nullglob
-
-if [[ ${#_matches[@]} -eq 0 ]]; then
-	echo "[crit] Could not find adapter.go under ${download_path}, exiting build process..." ; exit 1
-fi
-
-limit_source_filepath="${_matches[0]}"
+# customise bitmagnet source code to tweak result limits and sort order
+####
 
 max_limit='5000'
 default_limit='100'
+
+# note old location in current release is "${download_path}/internal/torznab/adapter/adapter.go"
+limit_source_filepath="${download_path}/internal/torznab/profile.go"
+
+if [[ ! -f "${limit_source_filepath}" ]]; then
+	echo "[crit] Could not find '${download_path}/internal/torznab/profile.go' (used to tweak limits), exiting build process..." ; exit 1
+fi
 
 # update result limit for bitmagnet to ensure we don't miss any new magnets due
 # to the current max limit of 100, note we keep the default limit at 100, so
@@ -100,17 +95,10 @@ default_limit='100'
 sed -i -E "s~MaxLimit:.*,$~MaxLimit:     ${max_limit},~g" "${limit_source_filepath}"
 sed -i -E "s~DefaultLimit:.*,$~DefaultLimit: ${default_limit},~g" "${limit_source_filepath}"
 
-# set location to install bitmagnet via GOBIN and then go install
-# safely expand glob into an array to find bitmagnet directory
-shopt -s nullglob
-_bitmagnet_dirs=( "${download_path}"/bitmagnet* )
-shopt -u nullglob
+# set default profile to disable order by relevance to ensure we get the latest results first
+sed -i -e "/MaxLimit:.*/a\\        DisableOrderByRelevance: true," "${limit_source_filepath}"
 
-if [[ ${#_bitmagnet_dirs[@]} -eq 0 ]]; then
-	echo "[crit] Could not find bitmagnet directory under ${download_path}, exiting build process..." ; exit 1
-fi
-
-cd "${_bitmagnet_dirs[0]}" && GOBIN="${install_path}" go install
+cd "${download_path}" && GOBIN="${install_path}" go install
 
 # create path to store postgres lock file
 mkdir -p /run/postgresql
