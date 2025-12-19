@@ -40,12 +40,7 @@ refresh.sh
 ####
 
 # define pacman packages
-#
-# IMPORTANT AOR package 'postgresql-old-upgrade' is the previous version to the current version of the 'postgresql' package,
-# in this case the previous version is v16 but this may change over time, we need to keep an eye on this package version,
-# if it looks like it will be bumped up then we need to code up to perform the dump and load of the data during the postgreql
-# upgrade.
-pacman_packages="go git postgresql-old-upgrade postgresql-libs sqlite jq"
+pacman_packages="go git postgresql-libs sqlite jq"
 
 # install compiled packages using pacman
 if [[ -n "${pacman_packages}" ]]; then
@@ -55,6 +50,15 @@ if [[ -n "${pacman_packages}" ]]; then
 	fi
 	pacman -S --needed $pacman_packages --noconfirm
 fi
+
+# aur packages
+####
+
+# define aur packages
+aur_packages="postgresql16"
+
+# call aur install script (arch user repo)
+aur.sh --aur-package "${aur_packages}"
 
 # custom
 ####
@@ -110,7 +114,7 @@ echo "export PATH=${install_path}:\${PATH}" >> '/home/nobody/.bashrc'
 ####
 
 # define comma separated list of paths
-install_paths="/opt/bitmagnet,/run/postgresql,/opt/pgsql-16,/home/nobody"
+install_paths="/opt/bitmagnet,/run/postgresql,/opt/postgresql16,/home/nobody"
 
 # split comma separated string into list for install paths
 IFS=',' read -ra install_paths_list <<< "${install_paths}"
@@ -121,7 +125,7 @@ for i in "${install_paths_list[@]}"; do
 	# confirm path(s) exist, if not then exit
 	if [[ ! -d "${i}" ]]; then
 		echo "[crit] Path '${i}' does not exist, exiting build process..." ; exit 1
-	fi
+		fi
 
 done
 
@@ -166,21 +170,27 @@ rm /tmp/permissions_heredoc
 
 cat <<'EOF' > /tmp/envvars_heredoc
 
-export POSTGRES_VACUUM_DB=$(echo "${POSTGRES_VACUUM_DB}" | sed -e 's~^[ \t]*~~;s~[ \t]*$~~')
-if [[ ! -z "${POSTGRES_VACUUM_DB}" ]]; then
-	echo "[info] POSTGRES_VACUUM_DB defined as '${POSTGRES_VACUUM_DB}'" | ts '%Y-%m-%d %H:%M:%.S'
-else
-	echo "[info] POSTGRES_VACUUM_DB not defined,(via -e POSTGRES_VACUUM_DB), defaulting to 'false'" | ts '%Y-%m-%d %H:%M:%.S'
-	export POSTGRES_VACUUM_DB="false"
-fi
+# source in utility functions, need process_env_var
+source utils.sh
 
-export POSTGRES_REINDEX_DB=$(echo "${POSTGRES_REINDEX_DB}" | sed -e 's~^[ \t]*~~;s~[ \t]*$~~')
-if [[ ! -z "${POSTGRES_REINDEX_DB}" ]]; then
-	echo "[info] POSTGRES_REINDEX_DB defined as '${POSTGRES_REINDEX_DB}'" | ts '%Y-%m-%d %H:%M:%.S'
-else
-	echo "[info] POSTGRES_REINDEX_DB not defined,(via -e POSTGRES_REINDEX_DB), defaulting to 'false'" | ts '%Y-%m-%d %H:%M:%.S'
-	export POSTGRES_REINDEX_DB="false"
-fi
+# Define environment variables to process
+# Format: "VAR_NAME:DEFAULT_VALUE:REQUIRED:MASK"
+env_vars=(
+	"POSTGRES_VACUUM_DB:false:false:false"
+	"POSTGRES_REINDEX_DB:false:false:false"
+	"POSTGRES_BACKUP_DB:true:false:false"
+	"POSTGRES_BACKUP_RETENTION_DAYS:7:false:false"
+	"POSTGRES_SCHEDULED_BACKUP:true:false:false"
+	"POSTGRES_BACKUP_INTERVAL_HOURS:48:false:false"
+	"POSTGRES_RESTORE_DB:false:false:false"
+	"POSTGRES_RESTORE_PATH::false:false"
+)
+
+# Process each environment variable
+for env_var in "${env_vars[@]}"; do
+	IFS=':' read -r var_name default_value required mask_value <<< "${env_var}"
+	process_env_var "${var_name}" "${default_value}" "${required}" "${mask_value}"
+done
 
 EOF
 

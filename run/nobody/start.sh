@@ -6,7 +6,7 @@ postgres_username='postgres'
 postgres_password='postgres'
 postgres_database='bitmagnet'
 postgres_data='/config/postgres/data'
-postgres_install_path='/opt/pgsql-16'
+postgres_install_path='/opt/postgresql16'
 bitmagnet_install_path='/opt/bitmagnet'
 bitmagnet_config_path='/config/bitmagnet'
 bitmagnet_config_filename='config.yml'
@@ -81,6 +81,111 @@ function init_database() {
 		# Remove the temporary password file
 		rm -f "${temp_password_file}"
 
+	fi
+}
+
+function backup_database() {
+	# Perform database backup
+	echo "[info] Performing backup of database ${postgres_database}..."
+
+	# Define backup directory and filename with timestamp
+	backup_dir="${bitmagnet_config_path}/backups"
+	backup_timestamp=$(date +"%Y%m%d_%H%M%S")
+	backup_file="${backup_dir}/${postgres_database}_${backup_timestamp}"
+
+	# Create backup directory if it doesn't exist
+	mkdir -p "${backup_dir}"
+
+	# Export the PostgreSQL password to avoid being prompted
+	export PGPASSWORD="${postgres_password}"
+
+	# Perform backup using directory format with compression and parallel jobs
+	if "${postgres_install_path}/bin/pg_dump" -U "${postgres_username}" -h "${postgres_host}" -Fd -j 4 -Z 6 "${postgres_database}" -f "${backup_file}"; then
+		echo "[info] Database backup completed successfully: ${backup_file}"
+
+		# Optional: Clean up old backups (keep last 7 days)
+		if [[ "${POSTGRES_BACKUP_RETENTION_DAYS}" =~ ^[0-9]+$ ]]; then
+			echo "[info] Removing backups older than ${POSTGRES_BACKUP_RETENTION_DAYS} days..."
+			find "${backup_dir}" -type d -name "${postgres_database}_*" -mtime "+${POSTGRES_BACKUP_RETENTION_DAYS}" -exec rm -rf {} \; 2>/dev/null
+		fi
+	else
+		echo "[warn] Database backup failed"
+	fi
+}
+
+function scheduled_backup_loop() {
+	# Run scheduled backups in background if enabled (but not if restore is enabled)
+	if [[ "${POSTGRES_RESTORE_DB}" != "true" && ("${POSTGRES_BACKUP_DB}" == "true" || "${POSTGRES_SCHEDULED_BACKUP}" == "true") ]]; then
+		# Set default interval to 24 hours if not specified
+		backup_interval_hours="${POSTGRES_SCHEDULED_BACKUP_INTERVAL_HOURS:-24}"
+		backup_interval_seconds=$((backup_interval_hours * 3600))
+
+		if [[ "${POSTGRES_BACKUP_DB}" == "true" ]]; then
+			# Perform initial backup on startup
+			echo "[info] Running database backup on startup..."
+			backup_database
+		fi
+		if [[ "${POSTGRES_SCHEDULED_BACKUP}" == "true" ]]; then
+			echo "[info] Scheduled database backup enabled: running every ${backup_interval_hours} hours"
+
+			# Run in background loop
+			while true; do
+				sleep "${backup_interval_seconds}"
+				echo "[info] Running scheduled database backup..."
+				backup_database
+			done
+		fi
+	fi
+}
+
+function restore_database() {
+	# Perform database restore if requested via environment variable
+	if [[ "${POSTGRES_RESTORE_DB}" == "true" ]]; then
+		echo "[info] Database restore requested..."
+
+		# Define backup directory
+		backup_dir="${bitmagnet_config_path}/backups"
+
+		# Check if POSTGRES_RESTORE_PATH is set, otherwise use latest backup
+		if [[ -n "${POSTGRES_RESTORE_PATH}" ]]; then
+			restore_file="${POSTGRES_RESTORE_PATH}"
+			echo "[info] Using specified backup: ${restore_file}"
+		else
+			# Find the most recent backup directory
+			restore_file=$(find "${backup_dir}" -type d -name "${postgres_database}_*" | sort -r | head -n 1)
+			if [[ -z "${restore_file}" ]]; then
+				echo "[warn] No backup files found in ${backup_dir}"
+				return 1
+			fi
+			echo "[info] Using latest backup: ${restore_file}"
+		fi
+
+		# Verify backup file exists
+		if [[ ! -d "${restore_file}" ]]; then
+			echo "[warn] Backup directory does not exist: ${restore_file}"
+			return 1
+		fi
+
+		echo "[warn] This will drop and recreate the database ${postgres_database}!"
+		echo "[info] Dropping database ${postgres_database}..."
+
+		# Export the PostgreSQL password to avoid being prompted
+		export PGPASSWORD="${postgres_password}"
+
+		# Drop the existing database
+		"${postgres_install_path}/bin/psql" -U "${postgres_username}" -h "${postgres_host}" -c "DROP DATABASE IF EXISTS ${postgres_database};" 2>/dev/null
+
+		echo "[info] Creating empty database ${postgres_database}..."
+		"${postgres_install_path}/bin/createdb" -U "${postgres_username}" "${postgres_database}" -h "${postgres_host}"
+
+		echo "[info] Restoring database from backup..."
+		if "${postgres_install_path}/bin/pg_restore" -U "${postgres_username}" -h "${postgres_host}" -d "${postgres_database}" -j 4 "${restore_file}"; then
+			echo "[info] Database restore completed successfully"
+		else
+			echo "[warn] Database restore failed or completed with errors"
+		fi
+	else
+		echo "[info] Database restore skipped (set POSTGRES_RESTORE_DB=true to enable)"
 	fi
 }
 
@@ -163,7 +268,7 @@ function run_bitmagnet() {
 }
 
 function main() {
-	# Run the functions in the correct order
+	# Note ordering of the functions is important here
 	check_for_classifier_file
 	copy_example_files
 	delete_pid_file
@@ -173,10 +278,17 @@ function main() {
 	create_database
 	wait_for_database
 
-	# Optional database maintenance operations
+	# perform restore if enabled
+	restore_database
+
+	# Optional database maintenance
 	vacuum_database
 	reindex_database
 
+	# Start scheduled backup loop in background
+	scheduled_backup_loop &
+
+	# Run bitmagnet
 	run_bitmagnet
 }
 
