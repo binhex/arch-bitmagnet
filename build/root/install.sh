@@ -160,9 +160,9 @@ source utils.sh
 env_vars=(
 	"POSTGRES_VACUUM_DB:false:false:false"
 	"POSTGRES_REINDEX_DB:false:false:false"
-	"POSTGRES_BACKUP_DB:true:false:false"
+	"POSTGRES_BACKUP_DB:false:false:false"
 	"POSTGRES_BACKUP_RETENTION_DAYS:7:false:false"
-	"POSTGRES_SCHEDULED_BACKUP:true:false:false"
+	"POSTGRES_SCHEDULED_BACKUP:false:false:false"
 	"POSTGRES_BACKUP_INTERVAL_HOURS:48:false:false"
 	"POSTGRES_RESTORE_DB:false:false:false"
 	"POSTGRES_RESTORE_PATH::false:false"
