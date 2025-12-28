@@ -174,6 +174,11 @@ for env_var in "${env_vars[@]}"; do
 	process_env_var "${var_name}" "${default_value}" "${required}" "${mask_value}"
 done
 
+# Disable healthcheck if any of the maintenance operations are enabled
+if [[ "${POSTGRES_VACUUM_DB}" == "true" || "${POSTGRES_REINDEX_DB}" == "true" || "${POSTGRES_RESTORE_DB}" == "true" ]]; then
+	echo "[info] Postgres maintenance operation enabled, disabling healthcheck" | ts '%Y-%m-%d %H:%M:%.S'
+	export ENABLE_HEALTHCHECK='no'
+fi
 EOF
 
 # replace env vars placeholder string with contents of file (here doc)
