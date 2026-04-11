@@ -40,6 +40,11 @@ keywords:
 # extend the default workflow with a custom workflow:
 workflows:
   custom:
+    # delete torrents with a known seed count of zero before any further processing
+    # if the seed count is not known then this rule is skipped.
+    - if_else:
+        condition: "has(torrent.seeders) && torrent.seeders < 1"
+        if_action: delete
     # first run the default workflow:
     - run_workflow: default
     # filter specific content
